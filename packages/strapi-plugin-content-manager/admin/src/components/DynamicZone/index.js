@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { get } from 'lodash';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
@@ -29,6 +29,7 @@ const DynamicZone = ({ max, min, name }) => {
     moveComponentUp,
     moveComponentDown,
     removeComponentFromDynamicZone,
+    dynamicDisplayedComponents,
   } = useDataManager();
 
   const { components } = useEditView();
@@ -37,35 +38,51 @@ const DynamicZone = ({ max, min, name }) => {
     return get(modifiedData, [name], []).map(data => data.__component);
   }, [modifiedData, name]);
 
-  const getDynamicComponentSchemaData = componentUid => {
-    const component = components.find(compo => compo.uid === componentUid);
-    const { schema } = component;
+  const getDynamicComponentSchemaData = useCallback(
+    componentUid => {
+      const component = components.find(compo => compo.uid === componentUid);
+      const { category, schema } = component;
 
-    return schema;
-  };
-
-  const getDynamicComponentInfos = componentUid => {
-    const {
-      info: { icon, name },
-    } = getDynamicComponentSchemaData(componentUid);
-
-    return { icon, name };
-  };
-
-  const dynamicZoneErrors = Object.keys(formErrors)
-    .filter(key => {
-      return key === name;
-    })
-    .map(key => formErrors[key]);
-
-  const dynamicZoneAvailableComponents = get(
-    layout,
-    ['schema', 'attributes', name, 'components'],
-    []
+      return { category, schema };
+    },
+    [components]
   );
 
-  const metas = get(layout, ['metadatas', name, 'edit'], {});
-  const dynamicDisplayedComponentsLength = getDynamicDisplayedComponents().length;
+  const getDynamicComponentInfos = useCallback(
+    componentUid => {
+      const {
+        schema: {
+          info: { icon, name },
+        },
+        category,
+      } = getDynamicComponentSchemaData(componentUid);
+
+      return { icon, name, category };
+    },
+    [getDynamicComponentSchemaData]
+  );
+
+  const getDynamicComponentCategories = useMemo(() => {
+    return components.reduce((cat, compo) => {
+      if (!cat[compo.category]) {
+        cat[compo.category] = [];
+      }
+      cat[compo.category].push(compo.uid);
+
+      return cat;
+    }, {});
+  }, [components]);
+
+  const dynamicZoneErrors = useMemo(() => {
+    return Object.keys(formErrors)
+      .filter(key => {
+        return key === name;
+      })
+      .map(key => formErrors[key]);
+  }, [formErrors, name]);
+
+  const metas = useMemo(() => get(layout, ['metadatas', name, 'edit'], {}), [layout, name]);
+  const dynamicDisplayedComponentsLength = dynamicDisplayedComponents.length;
   const missingComponentNumber = min - dynamicDisplayedComponentsLength;
   const hasError = dynamicZoneErrors.length > 0;
   const hasMinError =
@@ -170,25 +187,34 @@ const DynamicZone = ({ max, min, name }) => {
             <p className="componentPickerTitle">
               <FormattedMessage id={`${pluginId}.components.DynamicZone.pick-compo`} />
             </p>
-            <div className="componentsList">
-              {dynamicZoneAvailableComponents.map(componentUid => {
-                const { icon, name: friendlyName } = getDynamicComponentInfos(componentUid);
+            {Object.entries(getDynamicComponentCategories).map(([key, values]) => {
+              return (
+                <React.Fragment key={key}>
+                  <p className="componentsListTitle" key={`${key}-title`}>
+                    {key}
+                  </p>
+                  <div className="componentsList" key={`${key}-list`}>
+                    {values.map(componentUid => {
+                      const { icon, name: friendlyName } = getDynamicComponentInfos(componentUid);
 
-                return (
-                  <DynamicComponentCard
-                    key={componentUid}
-                    componentUid={componentUid}
-                    friendlyName={friendlyName}
-                    icon={icon}
-                    onClick={() => {
-                      setIsOpen(false);
-                      const shouldCheckErrors = hasError;
-                      addComponentToDynamicZone(name, componentUid, shouldCheckErrors);
-                    }}
-                  />
-                );
-              })}
-            </div>
+                      return (
+                        <DynamicComponentCard
+                          key={componentUid}
+                          componentUid={componentUid}
+                          friendlyName={friendlyName}
+                          icon={icon}
+                          onClick={() => {
+                            setIsOpen(false);
+                            const shouldCheckErrors = hasError;
+                            addComponentToDynamicZone(name, componentUid, shouldCheckErrors);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </React.Fragment>
+              );
+            })}
           </div>
         </ComponentsPicker>
       </Wrapper>

@@ -12,9 +12,10 @@ const ComponentsPicker = styled.div`
   }
 
   ${({ isOpen }) =>
-    isOpen &&
+  isOpen &&
     `
-    max-height: 260px;
+    max-height: none;
+    overflow: visible;
   `}
 
   .componentPickerTitle {
@@ -24,9 +25,22 @@ const ComponentsPicker = styled.div`
     font-size: 13px;
     line-height: normal;
   }
+  .componentsListTitle {
+    margin: 25px 0 15px;
+    color: #919bae;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: normal;
+    text-align: left;
+
+    &:first-letter {
+      text-transform: uppercase;
+    }
+  }
   .componentsList {
     display: flex;
     overflow-x: auto;
+    flex-wrap: wrap;
   }
 `;
 
